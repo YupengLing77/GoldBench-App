@@ -1,0 +1,38 @@
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Frontend dependencies and builds
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Local credentials, data, logs and experiment state (never upload)
+.env
+.env.*
+*.pem
+*.key
+runtime/
+data/local/
+docs/local/
+tmp/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.pid
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
