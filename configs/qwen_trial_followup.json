@@ -1,0 +1,26 @@
+{
+  "name": "Qwen 提交兼容性修正试跑 · 共用87K账本",
+  "start": "2026-10-12",
+  "end": "2026-10-13",
+  "dataset": "tushare",
+  "driver": "dashscope",
+  "models": [
+    "qwen3.8-2.4t-a95b"
+  ],
+  "groups": [
+    "extended"
+  ],
+  "repeats": 1,
+  "token_limit": 87000,
+  "monthly_budget": 1,
+  "paid_enabled": true,
+  "compatibility_verified": false,
+  "prices": {
+    "qwen3.8-2.4t-a95b": {
+      "input": 1.65,
+      "output": 4.951
+    }
+  },
+  "allow_short": true,
+  "spread": true
+}

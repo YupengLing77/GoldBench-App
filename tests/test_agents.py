@@ -50,3 +50,36 @@ def test_blind_dual_judge_disagreement_and_human_override(exp,monkeypatch):
 
 def test_judge_invalid_output_is_not_zero():
     with pytest.raises(ValueError):judges.validate({'scores':[5,1,2],'reasons':['a']*3,'evidence_ids':[],'critical_dispute':False},{})
+
+
+def test_live_monitor_reads_calls_without_prompts_or_private_reasoning(exp):
+    from goldbench.api import live
+    rid=store.reserve(exp['id'],'agent','2026-10-01',.001,10,tokens=100)
+    store.finish_request(rid,.001,{'request':{'messages':[{'role':'system','content':'PRIVATE_PROMPT_MARKER'}]},
+        'response':{'usage':{'prompt_tokens':10,'completion_tokens':5},'choices':[{'message':{
+            'reasoning_content':'PRIVATE_REASONING_MARKER','tool_calls':[{'id':'call-1','function':{
+                'name':'get_prices','arguments':'{"limit": 5}'}}]}}]}},tokens=15)
+    result=live(exp['id']);serialized=store.dumps(result)
+    assert 'PRIVATE_PROMPT_MARKER' not in serialized and 'PRIVATE_REASONING_MARKER' not in serialized
+    assert 'dataset' not in result and result['activity'][0]['name']=='get_prices'
+    assert result['activity'][0]['arguments']=={'limit':5}
+    assert result['token_budget']['used']==15 and result['requests_completed']==1
+    assert result['policy']['search_enabled'] is False
+
+
+def test_live_monitor_distinguishes_final_stage_rejection_from_execution(exp):
+    from goldbench.api import live
+    def saved(day, request, response):
+        rid=store.reserve(exp['id'],'agent',day,.001,10,tokens=100)
+        store.finish_request(rid,.001,{'request':request,'response':{'choices':[{'message':response}]}},tokens=10)
+    tool_call={'id':'same-call-id','function':{'name':'get_risk_index','arguments':'{}'}}
+    saved('2026-10-01',{'tools':[agents.SUBMIT]}, {'tool_calls':[tool_call]})
+    saved('2026-10-01',{'messages':[{'role':'tool','tool_call_id':'same-call-id','content':json.dumps({'error':'tool_not_active; select_tools_then_call_on_next_request'})}]},{})
+    saved('2026-10-02',{'tools':agents.TOOLS}, {'tool_calls':[tool_call]})
+    saved('2026-10-02',{'messages':[{'role':'tool','tool_call_id':'same-call-id','content':json.dumps({'evidence_id':'visible','data':{'status':'ok','rows':[]}})}]},{})
+    result=live(exp['id'])
+    blocked,executed=result['activity']
+    assert blocked['outcome']=='rejected' and blocked['reason']=='final_submission_only'
+    assert '未读取数据' in blocked['explanation']
+    assert executed['outcome']=='succeeded'
+    assert 'evidence_id' not in blocked['result']

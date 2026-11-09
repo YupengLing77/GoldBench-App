@@ -59,9 +59,13 @@ rows每行需要date（YYYY-MM-DD）、bid_open、ask_open、bid_close、ask_clo
 
 ## 研究工具状态
 
+工具扩展组使用按需router：初始目录包含全部17个工具，完整schema先提供价格、历史、选择和提交4个；select_tools按需加载任意数量可选工具，切换从下一请求生效。不限制路由和研究调用次数，但所有模型请求仍共用token/费用预算。详见[Agent工具说明](docs/AGENT_TOOLS.md#按需工具-router)。
+
+- GRAM补齐：get_fx_rates（主要货币对/FXCM美元篮子）、get_gold_etf_shares（境内黄金ETF份额/规模）、get_risk_index（VIX辅助风险）、get_us_yields(kind="breakeven")。仍缺的原始变量维护在[GRAM缺项清单](docs/GRAM_GAPS.md)。
+- 新增/扩展市场工具：get_gold_futures、get_gold_spot、get_gold_warehouse、get_us_yields、get_economic_calendar，以及在线get_macro/get_positioning；数据来源、参数、时间和修订版本限制见[Agent工具说明](docs/AGENT_TOOLS.md)。
 - get_prices：已实现XAUUSD已解锁日线，500行上限及数据句柄。其他外汇/上金所/ETF日线白名单的自动适配仍需补充，不宣称已具备多品种实测。
 - search_news/read_news：新浪、财联社、长篇新浪按时间窗获取/触限递归切分/去重缓存/正文清洗/关键词过滤/时间排序/证据留档；真实API需账号权限，测试驱动不会暗中联网。
-- get_macro/get_positioning/read_webpage：读取显式准备的冻结快照，每条必须带含时区的available_at，按截止过滤。宏观/持仓用dataset匹配，网页用record_id；尚未自动推断PMI/GDP发布日或美债延迟。无准备数据明确返回dataset_not_prepared，不伪造数据。
+- get_macro/get_positioning兼容导入快照并支持上述Tushare来源。月度/季度宏观和财经日历在线数据只从首次观察时间可见，缺历史版本返回historical_vintage_unavailable；不将当前修订值倒填到历史发布日期。read_webpage仍读取带available_at的存档。工程驱动不隐式联网。
 - get_history：只读自己的最近30轮，单次至多20，自动提供5轮。未成熟标签不进入提示词。
 - run_backtest：已获取句柄上的固定SMA20，缺连续bar保持，最后取得bar开盘统一退出；不开放参数自动搜索。
 - run_python：仅在已安装Docker且本地存在python:3.11-slim镜像时可用。network=none、只读根目录、无宿主挂载、非root、资源限额、20秒超时与强制清理；不会自动拉镜像。在当前环境未实测Docker隔离，工具会明确返回不可用。正式工具扩展组启动前须验证此能力。
@@ -96,3 +100,29 @@ npm run build
 ```
 
 SQLite备份须在服务停止后复制整个runtime目录，或使用SQLite在线备份；不要运行中仅拷贝主db漏掉WAL。首次完成真实试跑前，不将界面测试轨迹用于论文或模型能力排名。
+
+### DeepSeek 十月模拟交易
+
+`configs/deepseek_october_run.json` 使用百炼北京 `deepseek-v4-pro-0813`、单账户扩展组和审核后的 `gold-research-v3`。本次共享总预算为 1,000,000 tokens（含首次失败尝试及兼容性校准），通过原实验的 `token_budget_parent` 汇总并在每次请求前原子预留。密钥沿用被 git 忽略的 `runtime/qwen.env`，不会写入配置或请求 JSON。
+
+用户明确同意排除 2026-10-02、09、16、23、30 五个缺价周五，共17个模型决策日；配置中 `holidays` 在本实验表示用户批准的排除日期，并非真实交易所休市日。期末按既有规则在 2026-11-02 开盘统一退出，包含周末持仓风险。报价不填充、不移动日期。此结果不能称为完整22个交易日回测。
+
+DeepSeek 每轮研究预算为累计30k输入/10k输出、600秒，每次最多3k输出并为提交预留；最终提交允许超出单轮保守输入估算以避免无决策退出，但全实验1M硬上限始终在供应商请求边界执行。续轮估算复用已观测输入token数，对新增消息/工具定义按UTF-8字节加上协议余量保守预留；移除定义不返还估算额度。若某日未成功提交，调度器在该日检查点后暂停，避免连续付费失败。
+
+费用以美元保守估算（每百万输入1.5、输出4.5），不是供应商账单；参考百炼北京该快照忙时原价为人民币9/27，未计缓存和闲时折扣。准确账单以百炼为准。
+
+显式运行入口：`.venv/bin/python -m goldbench.experiment --config configs/deepseek_october_run.json --prepare`；首次准备后用 `--resume`。状态文件独立保存，重复调用不自动启动已存在实验。历史请求状态不明时拒绝自动恢复。
+
+### 模拟过程监测页面
+
+现有网站新增 `/monitor`（原工作台侧栏也有入口），使用 Sixmind 风格的深色、奶油白标题与薄荷绿配色。可通过 `?experiment=<id>` 指定实验；前端每2秒读取只读 `/api/experiments/{id}/live`。提供净值/收益率曲线、基准排名、日期回放、模型理由、实际研究调用次数、请求状态与工具参数/结果展开。暂停刷新只影响页面，不改变实验运行。接口不返回系统prompt、隐藏思考、完整行情集或密钥；只监听本机。Anton 字体与OFL许可随站点本地提供，不使用参考站的分析脚本或外部资源。
+
+### Flash：仅全实验1M token 上限
+
+`configs/flash_october_unbounded.json` 使用百炼北京 `deepseek-v4.1-flash` 和全新的独立1M预算，策略为 `research_policy=total_tokens_only`。保留审核通过的黄金prompt，运行状态消息明确只有总预算。取消单轮输入/输出额度、600秒时限、提前强制提交、思考力度low覆盖、禁用并行工具调用覆盖、历史条数裁剪、5.5KB结果截短、工具查询窗口/条数上限及120秒抓取截止。注册工具可直接调用，router不再是额外执行门槛；工具参数类型、支持的数据集/品种、时间线及密钥/沙箱隔离仍有效。Docker的网络、文件系统和资源隔离保留，脚本不再设20秒研究时限或8KB输出截短。
+
+每次供应商调用前，用序列化输入UTF-8保守上界加协议余量及输出偏差预留，动态计算本次最多可输出量；仅受剩余总预算及供应商393,216输出容量限制。已用输入（含缓存输入）、思考、输出和兼容性校准全部计入1M，预留在成功后按usage释放并核账。费用只记录，不以本地月度费用额度阻断本模式。HTTP调用不设本地读超时；供应商自身的服务/限流/容量限制仍可能导致失败。
+
+预算不足以支付下一请求时停止，状态 `token_budget_exhausted`；不为尚未提交的当天生成假成交、失败保持决策或完整月末收益。不要求保证完成17个有效报价日，不为后续日期预先切分或预留研究额度。预检只验证行情、凭证及配置，不要求剩余额度足以跑完整月。
+
+连接中断时，未知计费请求保留最坏token预留。恢复实验必须通过 `token_budget_parent` 显式共享原账本，不释放未知占用或重新分配总预算；包含本地账本ID的续跑配置不提交。新连接使用SSE流式返回和最终usage核账；请求发出前即归档参数，断流时保留预留，绝不按字符数猜测计费。

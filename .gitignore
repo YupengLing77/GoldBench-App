@@ -36,3 +36,7 @@ tmp/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Machine-specific experiment continuations reference local private ledgers
+configs/deepseek_october_run.json
+configs/flash_october_stream.json

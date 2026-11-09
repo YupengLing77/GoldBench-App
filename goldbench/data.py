@@ -2,7 +2,7 @@ import json, math, hashlib, os
 from datetime import date,timedelta,datetime,timezone
 from pathlib import Path
 import httpx
-from . import store
+from . import store, policies
 from .engine import days, next_day, cutoff
 
 def normalize(rows):
@@ -49,7 +49,7 @@ def coverage(rows,config):
 def tushare(api,params):
     token=os.environ.get('TUSHARE_TOKEN')
     if not token:raise RuntimeError('TUSHARE_TOKEN_not_configured')
-    with httpx.Client(timeout=30) as client:
+    with httpx.Client(timeout=None if policies.GLOBAL_ONLY.get() else 30) as client:
         r=client.post('https://api.tushare.pro',json={'api_name':api,'token':token,'params':params,'fields':''})
         r.raise_for_status();obj=r.json()
     if obj.get('code')!=0:raise RuntimeError('tushare_api_error:'+str(obj.get('code')))
@@ -65,7 +65,7 @@ def news_slice(start,end,source='sina',depth=0):
     rows=tushare('major_news' if source=='major_sina' else 'news',dict(src='新浪财经' if source=='major_sina' else source,start_date=start,end_date=end,limit=limit))
     if len(rows)>=limit:
         a,b=datetime.fromisoformat(start),datetime.fromisoformat(end)
-        if (b-a).total_seconds()<=2 or depth>=24:raise RuntimeError('news_window_truncated')
+        if (b-a).total_seconds()<=2 or (not policies.GLOBAL_ONLY.get() and depth>=24):raise RuntimeError('news_window_truncated')
         mid=(a+(b-a)/2).replace(microsecond=0).isoformat(sep=' ')
         rows=news_slice(start,mid,source,depth+1)+news_slice(mid,end,source,depth+1)
     unique={hashlib.sha256(store.dumps(r).encode()).hexdigest():r for r in rows}

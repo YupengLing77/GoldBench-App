@@ -1,0 +1,34 @@
+{
+  "name": "DeepSeek V4.1 Flash · 自主研究 · 仅1M总上限",
+  "start": "2026-10-01",
+  "end": "2026-10-30",
+  "dataset": "tushare",
+  "driver": "dashscope",
+  "models": [
+    "deepseek-v4.1-flash"
+  ],
+  "groups": [
+    "extended"
+  ],
+  "repeats": 1,
+  "token_limit": 1000000,
+  "monthly_budget": 10,
+  "paid_enabled": true,
+  "compatibility_verified": false,
+  "prices": {
+    "deepseek-v4.1-flash": {
+      "input": 0.35,
+      "output": 1.4
+    }
+  },
+  "allow_short": true,
+  "spread": true,
+  "holidays": [
+    "2026-10-02",
+    "2026-10-09",
+    "2026-10-16",
+    "2026-10-23",
+    "2026-10-30"
+  ],
+  "research_policy": "total_tokens_only"
+}

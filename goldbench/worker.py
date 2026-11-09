@@ -1,12 +1,13 @@
 import time, json, hashlib
 from concurrent.futures import ThreadPoolExecutor
-from . import store, data, agents
+from . import store, data, agents, providers, policies
 from .engine import days,next_day,execute,hold,sma,quote,cutoff
 
 MODELS=['GPT-5-mini','Gemini-3-Flash','Claude-Haiku-4.5','GPT-5-nano']
+SUPPORTED_MODELS=MODELS+list(providers.DASHSCOPE_MODELS)
 
 def roster(config):
-    return [(f'{model}|{group}|{repeat}',model,group,repeat) for group in ('base','extended') for model in config['models'] for repeat in (1,2)]+[(f'baseline|{name}',name,'baseline',0) for name in ('cash','buy_hold','sma20')]
+    return [(f'{model}|{group}|{repeat}',model,group,repeat) for group in config.get('groups',('base','extended')) for model in config['models'] for repeat in range(1,config.get('repeats',2)+1)]+[(f'baseline|{name}',name,'baseline',0) for name in ('cash','buy_hold','sma20')]
 
 def round_task(exp,identity,day,terminal,existing):
     aid,model,group,repeat=identity;config=exp['config']
@@ -41,9 +42,9 @@ def round_task(exp,identity,day,terminal,existing):
         event['valid_submission']=True
     else:
         # Mature history only; the previous round's endpoint is still in the future at cutoff.
-        history=[{k:e.get(k) for k in ('day','decision','status','equity','label')} for e in prior[-30:]]
+        history=[{k:e.get(k) for k in ('day','decision','status','equity','label')} for e in (prior if policies.total_only(config) else prior[-30:])]
         for h in history:
-            if h['decision']:
+            if h['decision'] and not policies.total_only(config):
                 h['decision']=dict(h['decision'],rationale=h['decision']['rationale'][:500])
             if next_day(h['day'],config['holidays'])>=day:h['label']=None
         research=agents.Research(exp,aid,day,history)
@@ -53,9 +54,12 @@ def round_task(exp,identity,day,terminal,existing):
             event.update(usage);event['valid_submission']=decision is not None
         except Exception as e:
             # Propagate uncertain provider/budget failures: do not label the cohort complete.
-            if config['driver']=='poe':raise
+            if config['driver']!='fixture':raise
             decision=None;event['error']=str(e)[:200]
         event['trace']=research.trace;event['evidence']=research.evidence
+        if not decision and usage.get('status')=='total_token_budget_exhausted':
+            store.save_event(exp['id'],event|{'status':'total_token_budget_exhausted'})
+            return
     event['decision']=decision
     action=decision or hold('失败保持原数量')
     try:
@@ -74,18 +78,29 @@ def run(ident):
     exp=store.get(ident);config=exp['config'];schedule=days(config['start'],config['end'],config['holidays'])
     store.status(ident,'running')
     try:
+        if config['driver']=='dashscope':providers.calibrate(exp)
         for day in schedule+[next_day(schedule[-1],config['holidays'])]:
             if store.get(ident)['status']=='pause_requested':store.status(ident,'paused');return
             existing=store.events(ident);terminal=day not in schedule
             with ThreadPoolExecutor(max_workers=2) as pool:
                 jobs=[pool.submit(round_task,exp,identity,day,terminal,existing) for identity in roster(config)]
                 for job in jobs:job.result()
+            if policies.total_only(config) and any(e['day']==day and e.get('status')=='total_token_budget_exhausted' for e in store.events(ident)):
+                store.status(ident,'token_budget_exhausted','1M total token allowance cannot fund another bounded provider request; month may be incomplete.')
+                return
+            if providers.DEEPSEEK in config['models'] and not terminal:
+                failed = [e for e in store.events(ident) if e['day']==day and e['group'] in config['groups'] and not e['valid_submission']]
+                if failed:
+                    store.status(ident,'paused','invalid_submission_requires_review:'+day)
+                    return
         events=store.events(ident)
         missing=any(e['status'] in ('data_unexecutable','platform_paused') for e in events)
         store.status(ident,'incomplete' if missing else 'completed_fixture' if config['driver']=='fixture' else 'awaiting_review')
     except Exception as e:store.status(ident,'blocked',str(e)[:300])
 
 def main():
+    from .trial import load_credentials
+    load_credentials(store.ROOT/'runtime/qwen.env')
     store.init()
     # One scheduler per local database; a second launch must not restart active work.
     lock=open(store.DATA/'worker.lock','a+b')

@@ -1,0 +1,246 @@
+{
+  "checked_on": "2026-11-10",
+  "framework": "World Gold Council GRAM; the supplied slide's variable list",
+  "methodology_url": "https://www.gold.org/goldhub/tools/gold-return-attribution-model",
+  "review_scope": "Connected Tushare interface catalog, official API documentation/search, and bounded sample queries. not_found_in_review is not proof that no private/new endpoint exists.",
+  "dimensions": {
+    "economic_expansion": [
+      "get_macro"
+    ],
+    "risk_and_uncertainty": [
+      "search_news",
+      "read_news",
+      "get_risk_index",
+      "get_us_yields"
+    ],
+    "opportunity_cost_interest_rates": [
+      "get_us_yields"
+    ],
+    "opportunity_cost_fx": [
+      "get_fx_rates"
+    ],
+    "momentum": [
+      "get_prices",
+      "get_gold_spot",
+      "get_gold_futures",
+      "get_positioning",
+      "get_gold_etf_shares"
+    ]
+  },
+  "added": [
+    {
+      "id": "major_currency_pairs",
+      "tool": "get_fx_rates",
+      "api": "fx_daily",
+      "verification": "MCP samples EURUSD.FXCM, USDJPY.FXCM, USDCNH.FXCM, AUDUSD.FXCM, 20261012-20261014",
+      "url": "https://tushare.pro/document/2?doc_id=179"
+    },
+    {
+      "id": "fxcm_dollar_basket",
+      "tool": "get_fx_rates",
+      "api": "fx_daily",
+      "verification": "MCP sample USDOLLAR, 20261012-20261014; not ICE DXY or original GRAM indices",
+      "url": "https://tushare.pro/document/2?doc_id=179"
+    },
+    {
+      "id": "china_gold_etf_shares",
+      "tool": "get_gold_etf_shares",
+      "api": "fund_share",
+      "verification": "MCP sample 518880.SH, 20261012-20261014; fourteen Au99.99/SHAU-tracking ETFs verified via etf_basic",
+      "url": "https://tushare.pro/document/2?doc_id=207"
+    },
+    {
+      "id": "china_gold_etf_size",
+      "tool": "get_gold_etf_shares",
+      "api": "etf_share_size",
+      "verification": "MCP sample 518880.SH, 20261012-20261014; shares and NAV-valued size are separate from flows",
+      "url": "https://tushare.pro/document/2?doc_id=408"
+    },
+    {
+      "id": "vix_equity_risk_proxy",
+      "tool": "get_risk_index",
+      "api": "vix_index",
+      "verification": "MCP sample 20261012-20261014; SP500 30-day equity IV, not gold 3-month IV",
+      "url": "https://tushare.pro/document/2?doc_id=498"
+    },
+    {
+      "id": "breakeven_inflation_proxy",
+      "tool": "get_us_yields",
+      "api": "us_tycr + us_trycr",
+      "verification": "Derived matching-date/maturity nominal minus real yield; percentage points",
+      "url": "https://tushare.pro/document/2?doc_id=220"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "equity_bond_flows",
+      "dimension": "risk_and_uncertainty",
+      "label": "GRAM对应口径的股债资金流",
+      "status": "not_found_in_review",
+      "searched": [
+        "equity bond flows",
+        "股债资金流",
+        "moneyflow",
+        "fund_flow_kofia"
+      ],
+      "reason": "A-share active-order moneyflow and Korea-only fund flows do not establish the original GRAM cross-asset flow series.",
+      "proxy_tools": [],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=170",
+        "https://tushare.pro/document/2?doc_id=342"
+      ]
+    },
+    {
+      "id": "gold_3m_implied_volatility",
+      "dimension": "risk_and_uncertainty",
+      "label": "黄金三个月隐含波动率",
+      "status": "not_found_in_review",
+      "searched": [
+        "黄金隐含波动率",
+        "gold implied volatility",
+        "opt_basic",
+        "opt_daily",
+        "vix_index"
+      ],
+      "reason": "Gold option contract/pricing endpoints and SP500 VIX are not a prebuilt three-month gold implied-volatility series. No synthetic IV is silently produced.",
+      "proxy_tools": [
+        "get_risk_index"
+      ],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=498",
+        "https://tushare.pro/document/2?doc_id=342"
+      ]
+    },
+    {
+      "id": "federal_reserve_assets",
+      "dimension": "risk_and_uncertainty",
+      "label": "美联储资产负债表总资产",
+      "status": "not_found_in_review",
+      "searched": [
+        "美联储资产",
+        "Federal Reserve assets",
+        "美国宏观目录"
+      ],
+      "reason": "Confirmed US Treasury rate APIs but no corresponding Fed balance-sheet time-series endpoint.",
+      "proxy_tools": [],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=342"
+      ]
+    },
+    {
+      "id": "geopolitical_risk_index",
+      "dimension": "risk_and_uncertainty",
+      "label": "地缘政治风险指数 GPR",
+      "status": "not_found_in_review",
+      "searched": [
+        "地缘政治风险指数",
+        "geopolitical risk index",
+        "GPR"
+      ],
+      "reason": "News supports qualitative research; it does not provide the named numerical GPR series.",
+      "proxy_tools": [
+        "search_news",
+        "read_news"
+      ],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=342"
+      ]
+    },
+    {
+      "id": "developed_market_fx_index",
+      "dimension": "opportunity_cost_fx",
+      "label": "GRAM原口径发达市场外汇指数",
+      "status": "original_definition_unverified",
+      "searched": [
+        "fx_obasic",
+        "FX_BASKET",
+        "GRAM developed market FX index"
+      ],
+      "reason": "FXCM major pairs and USDOLLAR found; original index composition, weights and history have not been matched.",
+      "proxy_tools": [
+        "get_fx_rates"
+      ],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=178",
+        "https://tushare.pro/document/2?doc_id=179"
+      ]
+    },
+    {
+      "id": "emerging_market_fx_index",
+      "dimension": "opportunity_cost_fx",
+      "label": "GRAM原口径新兴市场外汇指数",
+      "status": "original_definition_unverified",
+      "searched": [
+        "fx_obasic",
+        "FX_BASKET",
+        "GRAM emerging market FX index"
+      ],
+      "reason": "CNH/AUD pairs found, but no matched original basket; CNH is offshore yuan and must not be relabelled CNY.",
+      "proxy_tools": [
+        "get_fx_rates"
+      ],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=178",
+        "https://tushare.pro/document/2?doc_id=179"
+      ]
+    },
+    {
+      "id": "global_gold_etf_flows",
+      "dimension": "momentum",
+      "label": "全球黄金ETF资金流",
+      "status": "not_found_in_review",
+      "searched": [
+        "全球黄金ETF资金流",
+        "gold ETF flows",
+        "fund_share",
+        "etf_share_size",
+        "us_etf_daily"
+      ],
+      "reason": "China shares/size are partial proxies. Price-driven size changes and US ETF traded volume are not global creation/redemption flows.",
+      "proxy_tools": [
+        "get_gold_etf_shares"
+      ],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=207",
+        "https://tushare.pro/document/2?doc_id=408"
+      ]
+    },
+    {
+      "id": "comex_gold_net_long",
+      "dimension": "momentum",
+      "label": "COMEX黄金净多头（需明确CFTC分类与口径）",
+      "status": "not_found_in_review",
+      "searched": [
+        "COMEX",
+        "CFTC",
+        "COT",
+        "fut_holding"
+      ],
+      "reason": "SHFE member position ranks do not supply CFTC participant-category net-long positions.",
+      "proxy_tools": [
+        "get_positioning"
+      ],
+      "review_urls": [
+        "https://tushare.pro/document/2?doc_id=139",
+        "https://tushare.pro/document/2?doc_id=342"
+      ]
+    }
+  ],
+  "limitations": [
+    "MCP connection verification does not configure the application's TUSHARE_TOKEN or prove its permissions.",
+    "Latest revised monthly/quarterly macro and economic-calendar responses need preobserved vintages or verified imported available_at snapshots for historical runs.",
+    "GRAM residual is an attribution model output, not a missing data API. China GDP/PMI remain an explicit extension to the slide's constant economic-expansion regressor."
+  ],
+  "instrument_candidates": [
+    {
+      "ts_code": "159832.SZ",
+      "status": "benchmark_metadata_unverified",
+      "reason": "etf_basic identifies Shanghai-gold ETF by name but index_code/index_name are null; not enabled until benchmark is verified."
+    },
+    {
+      "ts_code": "159833.SZ",
+      "status": "benchmark_metadata_unverified",
+      "reason": "etf_basic identifies Shanghai-gold ETF by name but index_code/index_name are null; not enabled until benchmark is verified."
+    }
+  ]
+}

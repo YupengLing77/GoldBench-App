@@ -1,0 +1,33 @@
+{
+  "name": "DeepSeek 黄金历史交易 2026-10-01—10-30 · 1M tokens",
+  "start": "2026-10-01",
+  "end": "2026-10-30",
+  "dataset": "tushare",
+  "driver": "dashscope",
+  "models": [
+    "deepseek-v4-pro-0813"
+  ],
+  "groups": [
+    "extended"
+  ],
+  "repeats": 1,
+  "token_limit": 1000000,
+  "monthly_budget": 10,
+  "paid_enabled": true,
+  "compatibility_verified": false,
+  "prices": {
+    "deepseek-v4-pro-0813": {
+      "input": 1.5,
+      "output": 4.5
+    }
+  },
+  "allow_short": true,
+  "spread": true,
+  "holidays": [
+    "2026-10-02",
+    "2026-10-09",
+    "2026-10-16",
+    "2026-10-23",
+    "2026-10-30"
+  ]
+}
